@@ -4,7 +4,10 @@ import json
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional, Dict, Any
 from playwright.async_api import async_playwright, Page, Browser, ElementHandle
-from database import initialize_database, save_messages
+
+from app.database.connection import initialize_database
+from app.database.queries import save_messages, list_channels
+
 
 async def start_browser() -> Tuple[Browser, Any]:
     playwright = await async_playwright().start()
@@ -65,16 +68,18 @@ async def fetch_recent_messages_from_channel(page: Page, url: str, hours: int) -
 
     return messages
 
-
-async def main(channels: List[str], hours: int = 1):
+async def collect_messages(hours: int, channel_ids: List[int]) -> List[Dict[str, Any]]:
     initialize_database()
 
     browser, playwright = await start_browser()
     page = await browser.new_page()
 
+    all_channels = list_channels()
+    selected_channels = [c["link"] for c in all_channels if c["id"] in channel_ids]
+
     all_messages = []
 
-    for url in channels:
+    for url in selected_channels:
         print(f"🔍 Coletando mensagens de {url}...")
         messages = await fetch_recent_messages_from_channel(page, url, hours)
         all_messages.extend(messages)
@@ -82,22 +87,9 @@ async def main(channels: List[str], hours: int = 1):
     await browser.close()
     await playwright.stop()
 
-    # Salvar no banco
     save_messages(all_messages)
 
-    # (Opcional) também salvar em JSON
-    with open("telegram_messages.json", "w", encoding="utf-8") as f:
-        json.dump(all_messages, f, indent=2, ensure_ascii=False)
-
-    print(f"\n✅ {len(all_messages)} mensagens salvas no banco de dados SQLite.")
-
+    return all_messages
 
 if __name__ == "__main__":
-    # Coloque aqui os canais que você deseja monitorar
-    channels_to_check = [
-        "https://t.me/s/TCH_channel",
-        "https://t.me/s/ukrpravda_news",
-        # Adicione mais canais públicos aqui
-    ]
-    asyncio.run(main(channels=channels_to_check, hours=3))
-
+    asyncio.run(collect_messages(hours=3, channel_ids=[1, 2, 3]))
