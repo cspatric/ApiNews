@@ -6,9 +6,11 @@ import json
 from datetime import datetime, timedelta
 from app.database.connection import create_connection
 
-router = APIRouter(tags=["Alertas"])
+router = APIRouter(
+    prefix="/alerts",
+    tags=["Alertas"]
+)
 
-# 📥 Modelo de entrada
 class AlertCreate(BaseModel):
     message_ids: List[int]
     priority_id: Optional[int] = None
@@ -20,7 +22,6 @@ class AlertCreate(BaseModel):
     video: Optional[str] = None
     coordinates: Optional[str] = None
 
-# 📤 Modelo de resposta
 class AlertResponse(BaseModel):
     id: int
     message_ids: List[int]
@@ -43,50 +44,7 @@ class MessageResponse(BaseModel):
     images: Optional[str]
     video: Optional[str]
 
-@router.post("/alerts", response_model=AlertResponse)
-def create_alert(alert: AlertCreate):
-    conn = create_connection()
-    cursor = conn.cursor()
-    try:
-        now = datetime.utcnow().isoformat()
-        cursor.execute("""
-            INSERT INTO alerts (
-                message_ids, priority_id, country_id, title, short_description,
-                alert_body, images, video, timestamp, coordinates
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            json.dumps(alert.message_ids),
-            alert.priority_id,
-            alert.country_id,
-            alert.title,
-            alert.short_description,
-            json.dumps(alert.alert_body) if alert.alert_body else None,
-            alert.images,
-            alert.video,
-            now,
-            alert.coordinates
-        ))
-        conn.commit()
-        return {
-            "id": cursor.lastrowid,
-            "message_ids": alert.message_ids,
-            "priority_id": alert.priority_id,
-            "country_id": alert.country_id,
-            "title": alert.title,
-            "short_description": alert.short_description,
-            "alert_body": alert.alert_body,
-            "images": alert.images,
-            "video": alert.video,
-            "timestamp": now,
-            "coordinates": alert.coordinates
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        conn.close()
-
-
-@router.get("/alerts", response_model=List[AlertResponse])
+@router.get("/get", response_model=List[AlertResponse])
 def list_alerts():
     conn = create_connection()
     cursor = conn.cursor()
@@ -118,7 +76,7 @@ def list_alerts():
         conn.close()
 
 
-@router.get("/alerts/filter", response_model=List[MessageResponse])
+@router.get("/alerts/get/filter", response_model=List[MessageResponse])
 def filter_messages(
     country_id: Optional[int] = Query(None),
     category_id: Optional[int] = Query(None),
@@ -174,3 +132,47 @@ def filter_messages(
         ]
     finally:
         conn.close()
+
+@router.post("/create", response_model=AlertResponse)
+def create_alert(alert: AlertCreate):
+    conn = create_connection()
+    cursor = conn.cursor()
+    try:
+        now = datetime.utcnow().isoformat()
+        cursor.execute("""
+            INSERT INTO alerts (
+                message_ids, priority_id, country_id, title, short_description,
+                alert_body, images, video, timestamp, coordinates
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            json.dumps(alert.message_ids),
+            alert.priority_id,
+            alert.country_id,
+            alert.title,
+            alert.short_description,
+            json.dumps(alert.alert_body) if alert.alert_body else None,
+            alert.images,
+            alert.video,
+            now,
+            alert.coordinates
+        ))
+        conn.commit()
+        return {
+            "id": cursor.lastrowid,
+            "message_ids": alert.message_ids,
+            "priority_id": alert.priority_id,
+            "country_id": alert.country_id,
+            "title": alert.title,
+            "short_description": alert.short_description,
+            "alert_body": alert.alert_body,
+            "images": alert.images,
+            "video": alert.video,
+            "timestamp": now,
+            "coordinates": alert.coordinates
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+

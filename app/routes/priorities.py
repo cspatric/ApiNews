@@ -5,6 +5,7 @@ import sqlite3
 from app.database.connection import create_connection
 
 router = APIRouter(
+    prefix="/priorities",
     tags=["Priorities"]
 )
 
@@ -15,7 +16,19 @@ class PriorityResponse(BaseModel):
     id: int
     name: str
 
-@router.post("/priorities", response_model=PriorityResponse)
+@router.get("/get", response_model=List[PriorityResponse])
+def list_priorities():
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, name FROM priorities;")
+        rows = cursor.fetchall()
+        return [{"id": row[0], "name": row[1]} for row in rows]
+    finally:
+        conn.close()
+
+@router.post("/create", response_model=PriorityResponse)
 def create_priority(priority: PriorityCreate):
     conn = create_connection()
     cursor = conn.cursor()
@@ -26,17 +39,5 @@ def create_priority(priority: PriorityCreate):
         return {"id": cursor.lastrowid, "name": priority.name}
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Prioridade já cadastrada.")
-    finally:
-        conn.close()
-
-@router.get("/priorities", response_model=List[PriorityResponse])
-def list_priorities():
-    conn = create_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT id, name FROM priorities;")
-        rows = cursor.fetchall()
-        return [{"id": row[0], "name": row[1]} for row in rows]
     finally:
         conn.close()

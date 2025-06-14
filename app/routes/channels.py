@@ -6,25 +6,42 @@ from app.database.connection import create_connection
 from app.database.queries import list_channels
 
 router = APIRouter(
+    prefix="/channels",
     tags=["Channels"]
 )
 
-# 📥 Modelo de entrada
 class ChannelCreate(BaseModel):
     link: str
     country_id: int
 
-# 📤 Modelo de saída
 class ChannelListResponse(BaseModel):
     id: int
     link: str
     country_id: int
 
-@router.get("/channels", response_model=List[ChannelListResponse])
+@router.get("/get", response_model=List[ChannelListResponse])
 def get_channels():
     return list_channels()
 
-@router.post("/channels", response_model=ChannelListResponse)
+@router.get("/channels/get/filter", response_model=List[ChannelListResponse])
+def filter_channels(country_id: Optional[int] = Query(None, description="Filtrar por ID do país")):
+    conn = create_connection()
+    cursor = conn.cursor()
+    try:
+        if country_id is not None:
+            cursor.execute("SELECT id, link, country_id FROM channels WHERE country_id = ?", (country_id,))
+        else:
+            cursor.execute("SELECT id, link, country_id FROM channels")
+        rows = cursor.fetchall()
+        return [
+            {"id": row[0], "link": row[1], "country_id": row[2]}
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
+@router.post("/create", response_model=ChannelListResponse)
 def create_channel(channel: ChannelCreate):
     conn = create_connection()
     cursor = conn.cursor()
@@ -44,19 +61,3 @@ def create_channel(channel: ChannelCreate):
     finally:
         conn.close()
 
-@router.get("/channels/filter", response_model=List[ChannelListResponse])
-def filter_channels(country_id: Optional[int] = Query(None, description="Filtrar por ID do país")):
-    conn = create_connection()
-    cursor = conn.cursor()
-    try:
-        if country_id is not None:
-            cursor.execute("SELECT id, link, country_id FROM channels WHERE country_id = ?", (country_id,))
-        else:
-            cursor.execute("SELECT id, link, country_id FROM channels")
-        rows = cursor.fetchall()
-        return [
-            {"id": row[0], "link": row[1], "country_id": row[2]}
-            for row in rows
-        ]
-    finally:
-        conn.close()

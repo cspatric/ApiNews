@@ -5,6 +5,7 @@ import sqlite3
 from app.database.connection import create_connection
 
 router = APIRouter(
+    prefix="/alerts_categories",
     tags=["Alert Categories"]
 )
 
@@ -15,7 +16,20 @@ class AlertCategoryResponse(BaseModel):
     id: int
     name: str
 
-@router.post("/alert_categories", response_model=AlertCategoryResponse)
+@router.get("/get", response_model=List[AlertCategoryResponse])
+def list_alert_categories():
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, name FROM alert_categories;")
+        rows = cursor.fetchall()
+        return [{"id": row[0], "name": row[1]} for row in rows]
+    finally:
+        conn.close()
+
+
+@router.post("/create", response_model=AlertCategoryResponse)
 def create_alert_category(category: AlertCategoryCreate):
     conn = create_connection()
     cursor = conn.cursor()
@@ -32,17 +46,5 @@ def create_alert_category(category: AlertCategoryCreate):
         }
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Categoria já cadastrada ou erro de integridade.")
-    finally:
-        conn.close()
-
-@router.get("/alert_categories", response_model=List[AlertCategoryResponse])
-def list_alert_categories():
-    conn = create_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT id, name FROM alert_categories;")
-        rows = cursor.fetchall()
-        return [{"id": row[0], "name": row[1]} for row in rows]
     finally:
         conn.close()

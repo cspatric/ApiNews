@@ -6,10 +6,10 @@ from app.database.connection import create_connection
 from datetime import datetime
 
 router = APIRouter(
+    prefix="/messages",
     tags=["Messages"]
 )
 
-# 📥 Modelo de criação
 class MessageCreate(BaseModel):
     channel_id: int
     text: Optional[str] = None
@@ -17,7 +17,6 @@ class MessageCreate(BaseModel):
     images: Optional[str] = None
     video: Optional[str] = None
 
-# 📤 Modelo de resposta
 class MessageResponse(BaseModel):
     id: int
     channel_id: int
@@ -27,7 +26,28 @@ class MessageResponse(BaseModel):
     images: Optional[str]
     video: Optional[str]
 
-@router.post("/messages", response_model=MessageResponse)
+@router.get("/get", response_model=List[MessageResponse])
+def list_messages():
+    conn = create_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, channel_id, timestamp, text, links, images, video FROM messages")
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": row[0],
+                "channel_id": row[1],
+                "timestamp": row[2],
+                "text": row[3],
+                "links": row[4],
+                "images": row[5],
+                "video": row[6],
+            } for row in rows
+        ]
+    finally:
+        conn.close()
+
+@router.post("/create", response_model=MessageResponse)
 def create_message(message: MessageCreate):
     conn = create_connection()
     cursor = conn.cursor()
@@ -84,23 +104,3 @@ def create_message(message: MessageCreate):
     finally:
         conn.close()
 
-@router.get("/messages", response_model=List[MessageResponse])
-def list_messages():
-    conn = create_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT id, channel_id, timestamp, text, links, images, video FROM messages")
-        rows = cursor.fetchall()
-        return [
-            {
-                "id": row[0],
-                "channel_id": row[1],
-                "timestamp": row[2],
-                "text": row[3],
-                "links": row[4],
-                "images": row[5],
-                "video": row[6],
-            } for row in rows
-        ]
-    finally:
-        conn.close()
