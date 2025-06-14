@@ -18,7 +18,7 @@ from app.database.queries import list_channels
 # 🔧 Carrega variáveis do .env
 load_dotenv()
 
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/messages")
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/messages/create")
 DEFAULT_CAPTURE_MINUTES = int(os.getenv("TIME_MESSAGE_CAPTURE", "10"))
 
 

@@ -35,14 +35,6 @@ class AlertResponse(BaseModel):
     timestamp: str
     coordinates: Optional[str]
 
-class MessageResponse(BaseModel):
-    id: int
-    channel_id: int
-    timestamp: str
-    text: Optional[str]
-    links: Optional[str]
-    images: Optional[str]
-    video: Optional[str]
 
 @router.get("/get", response_model=List[AlertResponse])
 def list_alerts():
@@ -69,64 +61,6 @@ def list_alerts():
                 "video": row[8],
                 "timestamp": row[9],
                 "coordinates": row[10],
-            }
-            for row in rows
-        ]
-    finally:
-        conn.close()
-
-
-@router.get("/alerts/get/filter", response_model=List[MessageResponse])
-def filter_messages(
-    country_id: Optional[int] = Query(None),
-    category_id: Optional[int] = Query(None),
-    priority_id: Optional[int] = Query(None)
-):
-    conn = create_connection()
-    cursor = conn.cursor()
-
-    limit_timestamp = (datetime.utcnow() - timedelta(minutes=30)).isoformat()
-
-    try:
-        query = """
-            SELECT m.id, m.channel_id, m.timestamp, m.text, m.links, m.images, m.video
-            FROM messages m
-            JOIN channels c ON m.channel_id = c.id
-        """
-        filters = ["m.timestamp >= ?"]
-        params = [limit_timestamp]
-
-        if country_id:
-            filters.append("c.country_id = ?")
-            params.append(country_id)
-
-        if category_id or priority_id:
-            query += """
-                JOIN alerts a ON instr(a.message_ids, CAST(m.id AS TEXT)) > 0
-            """
-            if category_id:
-                query += " JOIN alert_categories ac ON a.priority_id = ac.id "
-                filters.append("ac.id = ?")
-                params.append(category_id)
-            if priority_id:
-                filters.append("a.priority_id = ?")
-                params.append(priority_id)
-
-        if filters:
-            query += " WHERE " + " AND ".join(filters)
-
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-
-        return [
-            {
-                "id": row[0],
-                "channel_id": row[1],
-                "timestamp": row[2],
-                "text": row[3],
-                "links": row[4],
-                "images": row[5],
-                "video": row[6],
             }
             for row in rows
         ]
