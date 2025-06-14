@@ -1,12 +1,25 @@
 import asyncio
 import re
 import json
+import argparse
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional, Dict, Any
+
+import requests
+from dotenv import load_dotenv
 from playwright.async_api import async_playwright, Page, Browser, ElementHandle
 
 from app.database.connection import initialize_database
-from app.database.queries import save_messages, list_channels
+from app.database.queries import list_channels
+
+# 🔧 Carrega variáveis do .env
+load_dotenv()
+
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/messages")
+DEFAULT_CAPTURE_MINUTES = int(os.getenv("TIME_MESSAGE_CAPTURE", "10"))
 
 
 async def start_browser() -> Tuple[Browser, Any]:
@@ -43,12 +56,12 @@ def extract_links(text: str) -> List[str]:
     return re.findall(r'https?://\S+', text)
 
 
-async def fetch_recent_messages_from_channel(page: Page, url: str, hours: int) -> List[Dict[str, Any]]:
+async def fetch_recent_messages_from_channel(page: Page, url: str, minutes: int) -> List[Dict[str, Any]]:
     await page.goto(url, wait_until='domcontentloaded')
     message_blocks = await get_message_blocks(page)
 
     now = datetime.now()
-    cutoff = now - timedelta(hours=hours)
+    cutoff = now - timedelta(minutes=minutes)
     messages = []
 
     for block in reversed(message_blocks):
@@ -60,36 +73,64 @@ async def fetch_recent_messages_from_channel(page: Page, url: str, hours: int) -
         if message_time >= cutoff:
             links = extract_links(message_text)
             messages.append({
-                "channel": url,
                 "timestamp": message_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "text": message_text,
-                "links": links,
+                "links": json.dumps(links),
             })
 
     return messages
 
-async def collect_messages(hours: int, channel_ids: List[int]) -> List[Dict[str, Any]]:
+
+async def collect_messages(minutes: int, channel_ids: List[int]):
     initialize_database()
 
     browser, playwright = await start_browser()
     page = await browser.new_page()
 
     all_channels = list_channels()
-    selected_channels = [c["link"] for c in all_channels if c["id"] in channel_ids]
+    selected = [(c["id"], c["link"]) for c in all_channels if c["id"] in channel_ids]
 
-    all_messages = []
-
-    for url in selected_channels:
+    for channel_id, url in selected:
         print(f"🔍 Coletando mensagens de {url}...")
-        messages = await fetch_recent_messages_from_channel(page, url, hours)
-        all_messages.extend(messages)
+        messages = await fetch_recent_messages_from_channel(page, url, minutes)
+
+        for msg in messages:
+            payload = {
+                "channel_id": channel_id,
+                "timestamp": msg["timestamp"],
+                "text": msg["text"],
+                "links": msg["links"],
+                "images": None,
+                "video": None
+            }
+            try:
+                res = requests.post(API_URL, json=payload)
+                print(f"✅ Enviado: {res.status_code} {res.json()}")
+            except Exception as e:
+                print(f"❌ Erro ao enviar mensagem: {e}")
 
     await browser.close()
     await playwright.stop()
 
-    save_messages(all_messages)
-
-    return all_messages
 
 if __name__ == "__main__":
-    asyncio.run(collect_messages(hours=3, channel_ids=[1, 2, 3]))
+    parser = argparse.ArgumentParser(description="Coleta mensagens do Telegram e envia para API.")
+    parser.add_argument("--minutes", type=int, help="Minutos anteriores para buscar (prioriza .env se ausente)")
+    parser.add_argument("--country", type=int, required=True, help="ID do país para coletar os canais")
+    args = parser.parse_args()
+
+    from dotenv import load_dotenv
+    import os
+    load_dotenv()
+
+    minutes = args.minutes or int(os.getenv("TIME_MESSAGE_CAPTURE", 10))
+    country_id = args.country
+
+    # Filtra canais automaticamente pelo país
+    all_channels = list_channels()
+    selected_channel_ids = [c["id"] for c in all_channels if c["country_id"] == country_id]
+
+    if not selected_channel_ids:
+        print(f"⚠️ Nenhum canal encontrado com country_id = {country_id}")
+    else:
+        asyncio.run(collect_messages(minutes / 60, selected_channel_ids))

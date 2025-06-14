@@ -13,7 +13,7 @@ class AlertCreate(BaseModel):
     message_ids: List[int]
     priority_id: Optional[int] = None
     country_id: Optional[int] = None
-    title: str
+    title: str 
     short_description: Optional[str] = None
     alert_body: Optional[dict] = None
     images: Optional[str] = None

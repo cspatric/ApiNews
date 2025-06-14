@@ -24,10 +24,10 @@ def get_channel_id(channel_link: str) -> Optional[int]:
 def list_channels() -> List[Dict[str, Any]]:
     conn = create_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, link FROM channels")
+    cursor.execute("SELECT id, link, country_id FROM channels")
     rows = cursor.fetchall()
     conn.close()
-    return [{"id": row[0], "link": row[1]} for row in rows]
+    return [{"id": row[0], "link": row[1], "country_id": row[2]} for row in rows]
 
 
 def save_messages(messages: List[Dict[str, Any]]):
