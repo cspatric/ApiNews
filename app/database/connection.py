@@ -17,6 +17,14 @@ def initialize_database():
         );
     """)
 
+    # Prioridades
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS priorities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        );
+    """)
+
     # Canais
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS channels (
@@ -31,12 +39,11 @@ def initialize_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS alert_categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            priority_id INTEGER NOT NULL,
             name TEXT NOT NULL
         );
     """)
 
-    # Mensagens coletadas
+   # Mensagens coletadas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,9 +52,11 @@ def initialize_database():
             text TEXT,
             links TEXT,
             images TEXT,
+            video TEXT,
             FOREIGN KEY (channel_id) REFERENCES channels(id)
         );
     """)
+
 
     # Alertas
     cursor.execute("""
