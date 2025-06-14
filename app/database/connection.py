@@ -68,7 +68,8 @@ def initialize_database():
             title TEXT,
             short_description TEXT,
             alert_body TEXT, -- pode conter JSON
-            images TEXT,     -- longtext como base64 ou urls
+            images TEXT,     -- longtext simulada
+            video TEXT,      -- novo campo
             timestamp TEXT,
             coordinates TEXT,
             FOREIGN KEY (priority_id) REFERENCES alert_categories(id),

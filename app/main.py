@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.database.connection import initialize_database
-from app.routes import channels, countrys, priorities, alert_categories, messages
+from app.routes import channels, countrys, priorities, alert_categories, messages, alerts
 
 
 app = FastAPI(
@@ -10,6 +10,7 @@ app = FastAPI(
 
 initialize_database()
 
+app.include_router(alerts.router)
 app.include_router(messages.router)
 app.include_router(alert_categories.router)
 app.include_router(priorities.router)

@@ -37,7 +37,7 @@ def create_message(message: MessageCreate):
         cursor.execute("""
             INSERT INTO messages (channel_id, timestamp, text, links, images, video)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (
+        """, ( 
             message.channel_id,
             current_timestamp,
             message.text,
